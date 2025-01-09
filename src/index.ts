@@ -171,7 +171,7 @@ app.get('/transactions/user/:id', async (req: Request, res: Response): Promise<v
         if (!transactions || transactions.length === 0) {
             res.status(404).json({ message: 'No transactions found' });
         }
-        res.json(transactions);
+        res.status(200).json(transactions);
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
     }
