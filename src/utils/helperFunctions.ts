@@ -10,7 +10,8 @@ export const buildTransactionFilter = (query: any) => {
     return filter;
 };
 
-export const handlePagination = (page: string, limit: string) => {
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    return { skip, limit: parseInt(limit) };
+export const handlePagination = (query:any) => {
+    const { page = 1, limit = 3 } = query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    return { skip, limit: parseInt(limit as string) };
 };

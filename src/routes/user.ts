@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 const userRouter=express.Router();
 
 
-//I HAVE USED THIS API TO POPULATE DATA INTO USER COLLECTION
+//I HAVE USED THIS API TO POPULATE DATA INTO USERS COLLECTION
 userRouter.post('/user', async (req: Request, res: Response): Promise<void> => {
       const { name, phoneNumber } = req.body;
       
@@ -42,6 +42,8 @@ userRouter.post('/user', async (req: Request, res: Response): Promise<void> => {
       }
       }
   });
+
+// API-1 : Get user details by Id  
 userRouter.get('/user/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await User.findById(req.params.id);
@@ -52,9 +54,12 @@ userRouter.get('/user/:id', async (req: Request, res: Response): Promise<void> =
     }
 
     res.json({
+      message: "Here is the Requested User detail",
+      data:{
       id: user._id,
       name: user.name,
       phoneNumber: user.phoneNumber,
+      }
     });
   } catch (error) {
     res.status(400).json({ message: 'Server error' });
