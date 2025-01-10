@@ -6,7 +6,7 @@ import { buildTransactionFilter, handlePagination } from "../utils/helperFunctio
 const transactionRouter=express.Router();
 
 //I HAVE USED THIS API TO POPULATE DATA INTO TRANSANCTIONS COLLECTION
-transactionRouter.post('/transaction', async (req: Request, res: Response): Promise<void> => {
+transactionRouter.post('/transactions', async (req: Request, res: Response): Promise<void> => {
     const { status, type, transactionDate, amount, userId } = req.body;
 
     try {
