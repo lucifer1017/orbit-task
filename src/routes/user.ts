@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 const userRouter=express.Router();
 
 
-//USE THIS API TO POPULATE DATA INTO USER COLLECTION
+//I HAVE USED THIS API TO POPULATE DATA INTO USER COLLECTION
 userRouter.post('/user', async (req: Request, res: Response): Promise<void> => {
       const { name, phoneNumber } = req.body;
       

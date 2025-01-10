@@ -1,10 +1,11 @@
 import express, { Request, Response } from "express";
 import Transaction from "../models/transactionModel";
-import moment from "moment";
 import User from "../models/userModel";
+import mongoose from "mongoose";
+import { buildTransactionFilter, handlePagination } from "../utils/helperFunctions";
 const transactionRouter=express.Router();
 
-//USE THIS API TO POPULATE DATA INTO TRANSANCTION COLLECTION
+//I HAVE USED THIS API TO POPULATE DATA INTO TRANSANCTION COLLECTION
 transactionRouter.post('/transaction', async (req: Request, res: Response): Promise<void> => {
     const { status, type, transactionDate, amount, userId } = req.body;
 
@@ -57,85 +58,93 @@ transactionRouter.post('/transaction', async (req: Request, res: Response): Prom
     }
 });
   
+
+
 transactionRouter.get('/transactions/:userId', async (req: Request, res: Response): Promise<void> => {
     const { userId } = req.params;
-    const { status, type, fromDate, toDate } = req.query;  
+    const { status, type, fromDate, toDate ,page=1, limit=3} = req.query;  
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
 
+    const { skip, limit: pageLimit } = handlePagination(page as string, limit as string);
+    const filter = buildTransactionFilter(req.query);
+    filter.userId = new mongoose.Types.ObjectId(userId);
+    const pipeline: any[] = [
+        {
+            $match: filter
+        },
+        { $skip: skip },
+        { $limit: pageLimit },
+       ];
     
-    let filters: any = { userId: userId };
-
-    if (status) {
-        filters.status = status;
-    }
-
-    if (type) {
-        filters.type = type;
-    }
-
-    if (fromDate && toDate) {
-        //I am doing this to make sure both dates are strings
-        const fromDateStr = Array.isArray(fromDate) ? fromDate[0] : fromDate;
-        const toDateStr = Array.isArray(toDate) ? toDate[0] : toDate;
-
-        
-        filters.transactionDate = {
-          $gte: moment(fromDateStr, "YYYY-MM-DD").startOf('day').toDate(), 
-          $lte: moment(toDateStr, "YYYY-MM-DD").endOf('day').toDate() 
-        };
-    }
 
     try {
-        const transactions = await Transaction.find(filters);
+        
+        const transactions = await Transaction.aggregate(pipeline);
         if (!transactions || transactions.length === 0) {
-            res.status(404).json({ message: 'No transactions found' });
+            res.status(404).json({ message: 'No transactions found for the given user!' });
+            return;
         }
-        res.json({message:"Here are the Requested transactions" , data:transactions});
+        res.json({message:"Here are the Requested transactions" , 
+            data:transactions});
     } catch (error) {
         res.status(400).json({ message: 'Server error' });
     }
 });
 
-transactionRouter.get('/transactions-with-user', async (req: Request, res: Response): Promise<void> => {
-  const { status, type, fromDate, toDate } = req.query;  
+transactionRouter.get('/transactions', async (req: Request, res: Response): Promise<void> => {
+    const { status, type, fromDate, toDate, page = 1, limit = 3 } = req.query; 
+    const { skip, limit: pageLimit } = handlePagination(page as string, limit as string);
 
-  
-  let filters: any = {};
-
-  if (status) {
-      filters.status = status;
-  }
-
-  if (type) {
-      filters.type = type;
-  }
-
-  if (fromDate && toDate) {
-      //Again, doing this to make sure both dates are strings!
-      const fromDateStr = Array.isArray(fromDate) ? fromDate[0] : fromDate;
-      const toDateStr = Array.isArray(toDate) ? toDate[0] : toDate;
-
-      
-      filters.transactionDate = {
-        $gte: moment(fromDateStr, "YYYY-MM-DD").startOf('day').toDate(), 
-        $lte: moment(toDateStr, "YYYY-MM-DD").endOf('day').toDate() 
-      };
-  }
+    // Build the filter for the aggregation pipeline
+    const filter = buildTransactionFilter(req.query);
+    const pipeline: any[] = [
+        {
+            $match: filter
+        },
+        {
+            // Populate the 'userId' field to get user details (name, phoneNumber)
+            $lookup: {
+                from: 'users', // Name of the User collection
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'userDetails'
+            }
+        },
+        {
+            
+            $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true }
+        },
+        
+        { $skip: skip },
+        { $limit: pageLimit },
+    ];
 
   try {
       
-      const transactions = await Transaction.find(filters).populate('userId', 'name phoneNumber');  // Populate userId field with user details
+      const transactions = await Transaction.aggregate(pipeline);
 
       if (!transactions || transactions.length === 0) {
           res.status(404).json({ message: 'No transactions found' });
-      } else {
-          res.json({
-              message: "Here are the requested transactions with user details",
-              data: transactions
-          });
-      }
-  } catch (error) {
-      res.status(400).json({ message: 'Server error' });
-  }
+          return;
+      } 
+      res.json({
+        message: "Here are the requested transactions with user details",
+        data: transactions.map(transaction => ({
+            ...transaction,
+            userDetails: {
+                name: transaction.userDetails.name,
+                phoneNumber: transaction.userDetails.phoneNumber
+            }
+        }))
+    });
+      
+        } catch (error) {
+            res.status(400).json({ message: 'Server error' });
+        }
 });
 
 
